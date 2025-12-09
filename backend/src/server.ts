@@ -26,6 +26,9 @@ app.use(express.json());
 // Routes
 // Public routes
 app.use('/api/auth', authRoutes);
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date() });
+});
 
 // Protected routes
 app.use('/api/*', authenticateToken); // Apply auth middleware to all /api routes
@@ -43,6 +46,11 @@ app.get('/', (req, res) => {
     res.send('Construction Inventory System API');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} `);
-});
+// Only listen if not running on Vercel (Vercel handles the server)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+export default app;

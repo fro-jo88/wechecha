@@ -33,7 +33,7 @@ export default function RequestAssignmentModal({ isOpen, onClose, onSuccess }: R
     const fetchProducts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:3001/api/products', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -50,7 +50,7 @@ export default function RequestAssignmentModal({ isOpen, onClose, onSuccess }: R
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:3001/api/assignments', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/assignments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

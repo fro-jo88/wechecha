@@ -14,7 +14,7 @@ export default function DownloadPDFButton({ type, label = 'Download PDF' }: Down
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:3001/api/reports/${type}/pdf`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/reports/${type}/pdf`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

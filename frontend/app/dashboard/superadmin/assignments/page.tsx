@@ -26,7 +26,7 @@ export default function AssignmentRequestsPage() {
     const fetchRequests = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:3001/api/assignments?status=PENDING', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/assignments?status=PENDING`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -46,7 +46,7 @@ export default function AssignmentRequestsPage() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:3001/api/assignments/${id}/${action}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/assignments/${id}/${action}`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

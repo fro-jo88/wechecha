@@ -22,9 +22,9 @@ export default function CreateRequestPage() {
                 const headers = { 'Authorization': `Bearer ${token}` };
 
                 const [storesRes, sitesRes, productsRes] = await Promise.all([
-                    fetch('http://localhost:3001/api/stores', { headers }),
-                    fetch('http://localhost:3001/api/sites', { headers }),
-                    fetch('http://localhost:3001/api/products', { headers })
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/stores`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/sites`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers })
                 ]);
 
                 const stores = await storesRes.json();
@@ -49,7 +49,7 @@ export default function CreateRequestPage() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:3001/api/inventory/request', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/inventory/request`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

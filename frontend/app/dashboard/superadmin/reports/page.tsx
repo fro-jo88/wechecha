@@ -18,7 +18,7 @@ export default function ReportsPage() {
             if (filters.endDate) queryParams.append('endDate', filters.endDate);
             if (filters.mainCategory) queryParams.append('mainCategory', filters.mainCategory);
 
-            const res = await fetch(`http://localhost:3001/api/reports/${type}/pdf?${queryParams.toString()}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/reports/${type}/pdf?${queryParams.toString()}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
