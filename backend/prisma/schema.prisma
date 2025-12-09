@@ -1,0 +1,245 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum LocationType {
+  STORE
+  SITE
+}
+
+enum LocationStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  STORE_MANAGER
+  SITE_ENGINEER
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ==================== MODELS ====================
+
+model Location {
+  id          Int            @id @default(autoincrement())
+  name        String         @unique
+  type        LocationType
+  status      LocationStatus @default(ACTIVE)
+  address     String?
+  region      String?
+  description String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Manager/Engineer assignment
+  managerId   Int?
+  manager     User?          @relation("ManagedStores", fields: [managerId], references: [id])
+  engineerId  Int?
+  engineer    User?          @relation("EngineeredSites", fields: [engineerId], references: [id])
+
+  // Relations
+  inventory        Inventory[]
+  assignedUsers    User[]             @relation("AssignedLocation")
+  transfersFrom    Transfer[]         @relation("SourceLocation")
+  transfersTo      Transfer[]         @relation("DestinationLocation")
+  inventoryRequests InventoryRequest[]
+
+  @@index([managerId])
+  @@index([engineerId])
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
+  role         UserRole
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // RLS: Location assignment - CRITICAL for Row-Level Security
+  // Store Managers and Site Engineers can ONLY access data where their locationId matches
+  locationId   Int?
+  location     Location? @relation("AssignedLocation", fields: [locationId], references: [id])
+  
+  // Reverse relations for managers and engineers
+  managedStores     Location[]         @relation("ManagedStores")
+  engineeredSites   Location[]         @relation("EngineeredSites")
+  
+  // Inventory request relations
+  requestsCreated   InventoryRequest[] @relation("RequestCreatedBy")
+  requestsApproved  InventoryRequest[] @relation("RequestApprovedBy")
+  
+  // Notifications
+  notifications     Notification[]
+  
+  // Audit logs
+  auditLogs         AuditLog[]
+
+  @@index([locationId])
+  @@index([role, locationId]) // Composite index for RLS queries
+}
+
+
+enum MainCategory {
+  CONSUMABLE_GOODS
+  FIXED_ASSETS
+}
+
+model Product {
+  id              Int           @id @default(autoincrement())
+  name            String
+  sku             String        @unique
+  mainCategory    MainCategory  @default(CONSUMABLE_GOODS)
+  category        String
+  unit            String        // e.g., "kg", "pieces", "liters"
+  description     String?       @db.Text
+  price           Decimal       @default(0.0)
+  defaultMinStock Int           @default(0)
+  status          ProductStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  inventory        Inventory[]
+  transfers        TransferItem[]
+  inventoryRequests InventoryRequest[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model Inventory {
+  id         Int      @id @default(autoincrement())
+  quantity   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations
+  locationId Int
+  location   Location @relation(fields: [locationId], references: [id])
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([locationId, productId])
+  @@index([locationId])
+  @@index([productId])
+}
+
+model InventoryRequest {
+  id            Int           @id @default(autoincrement())
+  quantity      Int
+  status        RequestStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Product requested
+  productId     Int
+  product       Product       @relation(fields: [productId], references: [id])
+  
+  // Location (store or site)
+  locationId    Int
+  location      Location      @relation(fields: [locationId], references: [id])
+  
+  // Requested by (Super Admin)
+  requestedById Int
+  requestedBy   User          @relation("RequestCreatedBy", fields: [requestedById], references: [id])
+  
+  // Approved by (Store Manager or Site Engineer)
+  approvedById  Int?
+  approvedBy    User?         @relation("RequestApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([productId])
+  @@index([locationId])
+  @@index([requestedById])
+  @@index([approvedById])
+  @@index([status])
+}
+
+model Transfer {
+  id             Int      @id @default(autoincrement())
+  status         String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Source and destination
+  sourceId       Int
+  source         Location @relation("SourceLocation", fields: [sourceId], references: [id])
+  destinationId  Int
+  destination    Location @relation("DestinationLocation", fields: [destinationId], references: [id])
+  
+  // Transfer items
+  items          TransferItem[]
+
+  @@index([sourceId])
+  @@index([destinationId])
+  @@index([status])
+}
+
+model TransferItem {
+  id         Int      @id @default(autoincrement())
+  quantity   Int
+  
+  transferId Int
+  transfer   Transfer @relation(fields: [transferId], references: [id])
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([transferId])
+  @@index([productId])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // "ACCESS_DENIED", "LOCATION_VIOLATION", "UNAUTHORIZED_ATTEMPT"
+  resource   String   // "Store:2", "Site:5", "Inventory:10"
+  details    String?  @db.Text
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId, createdAt]) // For user activity reports
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  type      String   // INFO, SUCCESS, WARNING, ERROR
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
